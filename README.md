@@ -1,5 +1,5 @@
 # Realtor.ca API Wrapper and Scraper
-Python wrapper and scraper for the Realtor.ca website.
+Python wrapper and scraper for the Realtor.ca website. Use it to scrape Canadian real-estate listings easily.
 
 ## Installation
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the package requirements.
