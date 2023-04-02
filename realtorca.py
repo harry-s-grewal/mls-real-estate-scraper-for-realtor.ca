@@ -1,65 +1,56 @@
-import requests, json
-import pandas as pd
-import math
+""" Wrapper the queries module to get property data from realtor.ca. """
 from time import sleep
+from math import ceil
 from random import randint
+from requests import HTTPError
+import pandas as pd
+from queries import get_coordinates, get_property_list, get_property_details
 
-def getCoordinates(city):
-    url = "https://nominatim.openstreetmap.org/search?q=" + city + "&format=json&country=Canada"
-    response = requests.get(url=url)
-    response.raise_for_status()
-    data = response.json()
-    for response in data:
-        if response["class"] == "boundary" and response["type"] == "administrative":
-            return response["boundingbox"] # [latMin, latMax, lonMin, lonMax]
-    return data
 
-def sendPropertyListQuery(latMin, latMax, longMin, longMax, priceMin=0, priceMax=10000000, recordsPerPage=200, cultureId=1, currentPage=1, applicationId=1):
-    url = "https://api2.realtor.ca/Listing.svc/PropertySearch_Post"
-    headers = {"Referer": "https://www.realtor.ca/",
-                "Origin": "https://www.realtor.ca/",
-                "Host": "api2.realtor.ca"}
-    form = {
-        "LatitudeMin": latMin,
-        "LatitudeMax": latMax,
-        "LongitudeMin": longMin,
-        "LongitudeMax": longMax,
-        "PriceMin": priceMin,
-        "PriceMax": priceMax,
-        "RecordsPerPage": recordsPerPage,
-        "CultureId": cultureId,
-        "CurrentPage": currentPage,
-        "ApplicationId": applicationId
-    }
-    response = requests.post(url=url, headers=headers, data=form)
-    if response.status_code == 403:
-        print("Error 403: Rate limited")
-    elif response.status_code != 200:
-        print("Error " + str(response.status_code))
-    response.raise_for_status()
-    return response.json()
-
-def getPropertyListByCity(city):
-    coords = getCoordinates(city) # Creates bounding box for city
-    maxPages = 1
-    currentPage = 1
+def get_property_list_by_city(city):
+    """ Gets a list of properties for a given city, and returns it as a CSV file. """
+    coords = get_coordinates(city)  # Creates bounding box for city
+    max_pages = 1
+    current_page = 1
     results = []
-    while currentPage <= maxPages:
+    while current_page <= max_pages:
         try:
-            data = sendPropertyListQuery(coords[0], coords[1], coords[2], coords[3], currentPage=currentPage)
-            maxPages = math.ceil(data["Paging"]["TotalRecords"]/data["Paging"]["RecordsPerPage"])
+            data = get_property_list(
+                coords[0], coords[1], 
+                coords[2], coords[3],
+                current_page=current_page)
+            max_pages = ceil(data["Paging"]["TotalRecords"]/data["Paging"]["RecordsPerPage"])
             results.append(data["Results"])
-            currentPage += 1
-            sleep(randint(600,900)) # sleep for 10-15 minutes to avoid rate-limiting
-        except:
+            current_page += 1
+            sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
+        except HTTPError:
             print("Error: " + city)
-            sleep(randint(3000,3600)) # sleep for 50-60 minutes if frozen out
-    return results
+            sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
+    results_df = pd.DataFrame()
+    for json in results:
+        results_df = results_df.append(pd.json_normalize(json))
+    filename = city.replace(" ", "").replace(",", "") + ".csv"
+    results_df.to_csv(filename)
 
-def saveResultsToCSV(city):
-    df = pd.DataFrame()
-    propertiesList = getPropertyListByCity(city)
-    for json in propertiesList:
-        df = df.append(pd.json_normalize(json))
-    filename = city.replace(" ","").replace(",","") + ".csv"
-    df.to_csv(filename)
+
+def get_property_details_from_csv(filename):
+    """ Gets the details of a list of properties from the CSV file created by the function above. """
+    results = []
+    results_df = pd.read_csv(filename)
+    for _, row in results_df.iterrows():
+        property_id = str(row["Id"])
+        mls_reference_number = str(row["MlsNumber"])
+        try:
+            data = get_property_details(property_id, mls_reference_number)
+            results.append(data["Results"])
+            sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
+        except HTTPError:
+            print("Error: " + property_id)
+            sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
+    results_df = pd.DataFrame()
+    for json in results:
+        results_df = results_df.append(pd.DataFrame.from_dict(json))
+    filename = filename + "Details" + ".csv"
+    results_df.to_csv(filename)
+
+# 3. Create a readme file to explain how to use the script
