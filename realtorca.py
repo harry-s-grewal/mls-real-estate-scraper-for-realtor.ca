@@ -9,7 +9,7 @@ from queries import get_coordinates, get_property_list, get_property_details
 
 def save_to_file(filename, results):
     """ Saves data to a file. """
-    
+
     results_df = pd.DataFrame()
     for json in results:
         results_df = results_df.append(pd.json_normalize(json))
@@ -47,7 +47,7 @@ def get_property_list_by_city(city):
 
 
 def get_property_details_from_csv(filename):
-    """ Gets the details of a list of properties from the CSV file created by the function above. """
+    """ Gets the details of a list of properties from the CSV file created above. """
 
     results_df = pd.read_csv(filename)
     for _, row in results_df.iterrows():
@@ -58,8 +58,8 @@ def get_property_details_from_csv(filename):
         mls_reference_number = str(row["MlsNumber"])
         try:
             data = get_property_details(property_id, mls_reference_number)
-            filename = filename + "Details" + ".csv"
-            save_to_file(filename, [data])
+            pd.merge(results_df, pd.json_normalize([data]), on="Id")
+            save_to_file(filename, [data]) # TODO: Make sure save file takes dataframe as input
             sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
         except HTTPError:
             print("Error: " + property_id)
