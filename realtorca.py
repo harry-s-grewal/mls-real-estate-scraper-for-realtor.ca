@@ -28,6 +28,9 @@ def get_property_list_by_city(city):
     max_pages = 1
     current_page = 1
     while current_page <= max_pages:
+        ## Check if property list file already exists.
+        ## If it does, use last queried page to set what page should be queried.
+        ## Consider keeping all property information within one file.
         try:
             data = get_property_list(
                 coords[0], coords[1], 
@@ -48,6 +51,9 @@ def get_property_details_from_csv(filename):
 
     results_df = pd.read_csv(filename)
     for _, row in results_df.iterrows():
+        ## Check if property details file already exists.
+        ## If it does, only query for properties that haven't been searched for yet.
+        ## Consider keeping all property information within one file.
         property_id = str(row["Id"])
         mls_reference_number = str(row["MlsNumber"])
         try:
@@ -58,5 +64,3 @@ def get_property_details_from_csv(filename):
         except HTTPError:
             print("Error: " + property_id)
             sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
-
-get_property_details_from_csv("TorontoON.csv")
