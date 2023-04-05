@@ -27,15 +27,9 @@ Result:
 ```bash
 CalgaryAB.csv
 ```
-`get_property_details_from_csv()` will use that .csv file to get detailed property listings.
+`get_property_details_from_csv()` will use that .csv file to get property listing details to enhance the data already available.
 ```python
 get_property_list_by_city("CalgaryAB.csv")
 ```
 
-Result:
-```bash
-CalgaryABDetails.csv
-```
-
-
-Follows PEP8 Styleguide.
+*Follows PEP8 Styleguide.*
