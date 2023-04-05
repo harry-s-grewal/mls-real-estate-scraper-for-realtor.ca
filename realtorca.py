@@ -16,16 +16,18 @@ def get_property_list_by_city(city):
     filename = city.replace(" ", "").replace(",", "") + ".csv"
     if os.path.exists(filename):
         results_df = pd.read_csv(filename)
+        ## If the queries were interrupted, this will resume from the last page
+        current_page = ceil(results_df.shape[0]/200) + 1
+        max_pages = current_page + 1
     else:
         results_df = pd.DataFrame()
     while current_page <= max_pages:
-        ## Check if property list file already exists.
-        ## If it does, use last queried page to set what page should be queried.
         try:
             data = get_property_list(
                 coords[0], coords[1], 
                 coords[2], coords[3],
                 current_page=current_page)
+            ## Rounds up the total records by the records per page to nearest int
             max_pages = ceil(data["Paging"]["TotalRecords"]/data["Paging"]["RecordsPerPage"])
             for json in data["Results"]:
                 results_df = results_df.append(pd.json_normalize(json))
@@ -33,7 +35,7 @@ def get_property_list_by_city(city):
             current_page += 1
             sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
         except HTTPError:
-            print("Error: " + city)
+            print("Error occurred on city: " + city)
             sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
 
 
@@ -41,18 +43,18 @@ def get_property_details_from_csv(filename):
     """ Gets the details of a list of properties from the CSV file created above. """
 
     results_df = pd.read_csv(filename)
+    if "HasDetails" not in results_df.columns:
+        results_df["HasDetails"] = 0
     for _, row in results_df.iterrows():
-        ## Check if property details file already exists.
-        ## If it does, only query for properties that haven't been searched for yet.
+        if row["HasDetails"] == 1: # Avoids re-querying properties that already have details
+            continue
         property_id = str(row["Id"])
         mls_reference_number = str(row["MlsNumber"])
         try:
             data = get_property_details(property_id, mls_reference_number)
-            merged = results_df.join(pd.json_normalize([data]), lsuffix='_details')
+            merged = results_df.join(pd.json_normalize([data, {"HasDetails":1}]), lsuffix='_')
             merged.to_csv(filename, index=False)
             sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
         except HTTPError:
-            print("Error: " + property_id)
+            print("Error occurred on propertyID: " + property_id)
             sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
-
-get_property_details_from_csv("TorontoON.csv")
