@@ -2,11 +2,19 @@
 Python wrapper and scraper for the Realtor.ca website. Use it to scrape Canadian real-estate listings easily.
 
 ## Installation
-<!-- TODO: Update installation -->
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the package requirements.
 
 ```bash
-pip -r requirements.txt
+pip install git+https://github.com/harry-s-grewal/realtorca.git
+```
+
+## Local Development
+
+```bash
+git clone https://github.com/harry-s-grewal/realtorca.git
+python -m venv venv
+. venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Context
