@@ -39,5 +39,7 @@ CalgaryAB.csv
 ```python
 get_property_list_by_city("CalgaryAB.csv")
 ```
+## License
+MIT License
 
 *Follows PEP8 Styleguide.*
