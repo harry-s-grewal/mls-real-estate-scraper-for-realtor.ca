@@ -45,15 +45,16 @@ def get_property_details_from_csv(filename):
     results_df = pd.read_csv(filename)
     if "HasDetails" not in results_df.columns:
         results_df["HasDetails"] = 0
-    for _, row in results_df.iterrows():
+    for index, row in results_df.iterrows():
         if row["HasDetails"] == 1: # Avoids re-querying properties that already have details
             continue
         property_id = str(row["Id"])
         mls_reference_number = str(row["MlsNumber"])
         try:
             data = get_property_details(property_id, mls_reference_number)
-            merged = results_df.join(pd.json_normalize([data, {"HasDetails":1}]), lsuffix='_')
-            merged.to_csv(filename, index=False)
+            results_df = results_df.join(pd.json_normalize(data), lsuffix='_')
+            results_df.loc[index, 'HasDetails'] = 1
+            results_df.to_csv(filename, index=False)
             sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
         except HTTPError:
             print("Error occurred on propertyID: " + property_id)
