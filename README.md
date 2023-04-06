@@ -5,7 +5,16 @@ Python wrapper and scraper for the Realtor.ca website. Use it to scrape Canadian
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the package requirements.
 
 ```bash
-pip -r requirements.txt
+pip install git+https://github.com/harry-s-grewal/realtorca.git
+```
+
+## Local Development
+
+```bash
+git clone https://github.com/harry-s-grewal/realtorca.git
+python -m venv venv
+. venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Context
@@ -26,15 +35,11 @@ Result:
 ```bash
 CalgaryAB.csv
 ```
-`get_property_details_from_csv()` will use that .csv file to get detailed property listings.
+`get_property_details_from_csv()` will use that .csv file to get property listing details to enhance the data already available.
 ```python
 get_property_list_by_city("CalgaryAB.csv")
 ```
+## License
+MIT License
 
-Result:
-```bash
-CalgaryABDetails.csv
-```
-
-
-Follows PEP8 Styleguide.
+*Follows PEP8 Styleguide.*

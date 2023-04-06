@@ -7,56 +7,55 @@ from requests import HTTPError
 import pandas as pd
 from queries import get_coordinates, get_property_list, get_property_details
 
-def save_to_file(filename, results):
-    """ Saves data to a file. """
-    
-    results_df = pd.DataFrame()
-    for json in results:
-        results_df = results_df.append(pd.json_normalize(json))
-    if os.path.exists(filename):
-        file_df = pd.read_csv(filename)
-        file_df = file_df.append(results_df)
-        file_df.to_csv(filename, index=False)
-    else:
-        results_df.to_csv(filename, index=False)
-
-
 def get_property_list_by_city(city):
     """ Gets a list of properties for a given city, and returns it as a CSV file. """
 
     coords = get_coordinates(city)  # Creates bounding box for city
     max_pages = 1
     current_page = 1
+    filename = city.replace(" ", "").replace(",", "") + ".csv"
+    if os.path.exists(filename):
+        results_df = pd.read_csv(filename)
+        ## If the queries were interrupted, this will resume from the last page
+        current_page = ceil(results_df.shape[0]/200) + 1
+        max_pages = current_page + 1
+    else:
+        results_df = pd.DataFrame()
     while current_page <= max_pages:
         try:
             data = get_property_list(
                 coords[0], coords[1], 
                 coords[2], coords[3],
                 current_page=current_page)
+            ## Rounds up the total records by the records per page to nearest int
             max_pages = ceil(data["Paging"]["TotalRecords"]/data["Paging"]["RecordsPerPage"])
-            filename = city.replace(" ", "").replace(",", "") + ".csv"
-            save_to_file(filename, data["Results"])
+            for json in data["Results"]:
+                results_df = results_df.append(pd.json_normalize(json))
+            results_df.to_csv(filename, index=False)
             current_page += 1
             sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
         except HTTPError:
-            print("Error: " + city)
+            print("Error occurred on city: " + city)
             sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
 
 
 def get_property_details_from_csv(filename):
-    """ Gets the details of a list of properties from the CSV file created by the function above. """
+    """ Gets the details of a list of properties from the CSV file created above. """
 
     results_df = pd.read_csv(filename)
-    for _, row in results_df.iterrows():
+    if "HasDetails" not in results_df.columns:
+        results_df["HasDetails"] = 0
+    for index, row in results_df.iterrows():
+        if row["HasDetails"] == 1: # Avoids re-querying properties that already have details
+            continue
         property_id = str(row["Id"])
         mls_reference_number = str(row["MlsNumber"])
         try:
             data = get_property_details(property_id, mls_reference_number)
-            filename = filename + "Details" + ".csv"
-            save_to_file(filename, [data])
+            results_df = results_df.join(pd.json_normalize(data), lsuffix='_')
+            results_df.loc[index, 'HasDetails'] = 1
+            results_df.to_csv(filename, index=False)
             sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
         except HTTPError:
-            print("Error: " + property_id)
+            print("Error occurred on propertyID: " + property_id)
             sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
-
-get_property_details_from_csv("TorontoON.csv")
