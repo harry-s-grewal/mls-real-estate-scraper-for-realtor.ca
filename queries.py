@@ -5,7 +5,7 @@ import requests
 def get_coordinates(city):
     """Gets the coordinate bounds of a city from OpenStreetMap."""
 
-    url = "https://nominatim.openstreetmap.org/search?q=" + city + "&format=json&country=Canada"
+    url = "https://nominatim.openstreetmap.org/search?q=" + city + "&format=json"
     response = requests.get(url=url, timeout=10)
     response.raise_for_status()
     data = response.json()
