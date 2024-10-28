@@ -10,5 +10,5 @@ RUN pip install -r requirements.txt
 # Copy the rest of the application code into the image
 COPY . .
 
-# Set the entry point to python
-ENTRYPOINT ["python"]
+# Set the entry point to python entrypoint.py
+ENTRYPOINT ["python", "entrypoint.py"]

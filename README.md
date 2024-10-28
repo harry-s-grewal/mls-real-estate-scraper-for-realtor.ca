@@ -31,6 +31,14 @@ docker build -t mls-real-estate-scraper .
 docker run -it --rm mls-real-estate-scraper
 ```
 
+### Run the Docker container with a volume to generate the CSV file
+
+```bash
+docker run -it --rm -v $(pwd)/output:/app/output mls-real-estate-scraper <city_name>
+```
+
+Replace `<city_name>` with the name of the city you want to scrape. The generated CSV file will be saved in the `output` directory on your host machine.
+
 ## Context
 Realtor.ca has two API endpoints: `PropertySearch_Post` and `PropertyDetails`. Querying `PropertySearch_Post` 
 will return a list of properties in a .json format, including some limited details. Querying `PropertyDetails` will provide detailed information on each property. Depending on what you're looking for, you can query one or the other, but be aware that getting details on each property is slow. That's because Realtor.ca is rate limited (boo). If you make too many queries too often, you'll receive an `Error 403: Unauthorized` error. It's not clear what the rate limit is, but waiting an hour or so between limits stops the freeze-out.
