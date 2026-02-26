@@ -1,45 +1,36 @@
-# Realtor.ca API Wrapper and Scraper
-Python wrapper and scraper for the Realtor.ca website. Use it to scrape Canadian real-estate listings easily.
+# Realtor.ca Scraper
 
-## Installation
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install the package requirements.
+Lightweight Selenium-based scraper using `undetected-chromedriver`.
 
-```bash
-pip install git+https://github.com/harry-s-grewal/mls-real-estate-scraper-for-realtor.ca.git
-```
-
-## Local Development
+Requirements
+- Python 3.8+
+- Chrome / Chromium installed
+- Python deps:
 
 ```bash
-git clone https://github.com/harry-s-grewal/mls-real-estate-scraper-for-realtor.ca.git
-python -m venv venv
-. venv/bin/activate
-pip install -r ./mls-real-estate-scraper-for-realtor.ca/requirements.txt
+python -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## Context
-Realtor.ca has two API endpoints: `PropertySearch_Post` and `PropertyDetails`. Querying `PropertySearch_Post` 
-will return a list of properties in a .json format, including some limited details. Querying `PropertyDetails` will provide detailed information on each property. Depending on what you're looking for, you can query one or the other, but be aware that getting details on each property is slow. That's because Realtor.ca is rate limited (boo). If you make too many queries too often, you'll receive an `Error 403: Unauthorized` error. It's not clear what the rate limit is, but waiting an hour or so between limits stops the freeze-out.
+Chromedriver
+- You need a ChromeDriver that matches your installed Chrome.
+- Official download and instructions: https://sites.google.com/chromium.org/driver/
+- On Linux you can also install via your package manager or download the matching release and place the `chromedriver` binary on your PATH.
 
-## Usage
-In `queries.py` you will find queries to Realtor.ca for both the `PropertySearch_Post` endpoint and the `PropertyDetails` endpoint. It also contains a query to get the coordinate bounding box of a city, as that's what Realtor.ca uses to determine which properties to list.
+Usage
+Run the main script and set `city` and `max_pages` in `realtorca.py`, or modify the call in `main()`.
 
-In `realtorca.py` there are two functions to automate the scraping of Realtor.ca.
+Example (simple):
 
-`get_property_list_by_city()` will scrape a list of properties by city and save it as a .csv.
-```python
-get_property_list_by_city("Calgary, AB")
-```
-
-Result:
 ```bash
-CalgaryAB.csv
+python3 realtorca.py
 ```
-`get_property_details_from_csv()` will use that .csv file to get property listing details to enhance the data already available.
-```python
-get_property_list_by_city("CalgaryAB.csv")
-```
-## License
-MIT License
 
-*Follows PEP8 Styleguide.*
+What it does
+- Automates the homepage search, selects the first autocomplete result, waits for results, and parses listing cards (`div.smallListingCard`) to extract Address, Price, Bedrooms, Bathrooms, SquareFootage, MLS and Link.
+
+Notes
+- This repository currently does not implement filtering by price, beds, or baths. Remove those flags from your commands.
+
+License: MIT

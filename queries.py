@@ -24,10 +24,6 @@ def scrape_property_list(city, max_pages=1):
         print("🚀 Starting undetected Chrome browser...")
         driver = uc.Chrome(version_main=145)
         
-        # TODO: Add your navigation logic here
-        # Example:
-        driver.get("https://www.realtor.ca")
-        # time.sleep(5)        
         # Navigate to realtor.ca
         print("📄 Loading realtor.ca...")
         driver.get("https://www.realtor.ca")
@@ -38,11 +34,11 @@ def scrape_property_list(city, max_pages=1):
         search_box = driver.find_element(By.XPATH, "//*[@id='homeSearchTxt']")
         print("✓ Found search bar")
         
-        # Click on the search box and type
+        # Click on the search box and type the requested city
         search_box.click()
         time.sleep(1)
-        search_box.send_keys("toronto on")
-        print("✓ Typed 'toronto on'")
+        search_box.send_keys(city)
+        print(f"✓ Typed '{city}'")
         
         # Press down arrow
         search_box.send_keys(Keys.DOWN)
