@@ -1,66 +1,142 @@
-""" Contains all queries to the Realtor.ca API and OpenStreetMap."""
-import requests
+""" Contains all queries to Realtor.ca using undetected-chromedriver. """
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+import time
 
 
-def get_coordinates(city):
-    """Gets the coordinate bounds of a city from OpenStreetMap."""
-
-    url = "https://nominatim.openstreetmap.org/search?q=" + city + "&format=json"
-    response = requests.get(url=url, timeout=10)
-    response.raise_for_status()
-    data = response.json()
-    for response in data:
-        if (response["class"] == "boundary" and
-                response["type"] == "administrative"):
-            return response["boundingbox"]  # [latMin, latMax, lonMin, lonMax]
-    return data
-
-#pylint: disable=too-many-arguments
-def get_property_list(
-        lat_min, lat_max, long_min, long_max,
-        price_min=0, price_max=10000000,
-        records_per_page=200, culture_id=1,
-        current_page=1, application_id=1):
-    """Queries the Realtor.ca API to get a list of properties."""
-
-    url = "https://api2.realtor.ca/Listing.svc/PropertySearch_Post"
-    headers = {"Referer": "https://www.realtor.ca/",
-               "Origin": "https://www.realtor.ca/",
-               "Host": "api2.realtor.ca"}
-    form = {
-        "LatitudeMin": lat_min,
-        "LatitudeMax": lat_max,
-        "LongitudeMin": long_min,
-        "LongitudeMax": long_max,
-        "PriceMin": price_min,
-        "PriceMax": price_max,
-        "RecordsPerPage": records_per_page,
-        "CultureId": culture_id,
-        "CurrentPage": current_page,
-        "ApplicationId": application_id
-    }
-    response = requests.post(url=url, headers=headers, data=form, timeout=10)
-    if response.status_code == 403:
-        print("Error 403: Rate limited")
-    elif response.status_code != 200:
-        print("Error " + str(response.status_code))
-    response.raise_for_status()
-    return response.json()
-
-
-def get_property_details(property_id, mls_reference_number):
-    """Queries the Realtor.ca API to get details of a property."""
-
-    baseurl = "https://api2.realtor.ca/Listing.svc/PropertyDetails?ApplicationId=1&CultureId=1"
-    url = baseurl + "&PropertyID=" + property_id + "&ReferenceNumber=" + mls_reference_number
-
-    headers = {"Referer": "https://www.realtor.ca/",
-               "Origin": "https://www.realtor.ca/",
-               "Host": "api2.realtor.ca"}
-    response = requests.get(url=url, headers=headers, timeout=10)
-    if response.status_code == 403:
-        print("Error 403: Rate limited")
-    elif response.status_code != 200:
-        print("Error " + str(response.status_code))
-    response.raise_for_status()
-    return response.json()
+def scrape_property_list(city, max_pages=1):
+    """Scrapes properties from Realtor.ca for a given city.
+    
+    Args:
+        city: City name (e.g., "Toronto, ON")
+        max_pages: Maximum number of pages to scrape (default: 1)
+    
+    Returns:
+        List of property dictionaries
+    """
+    
+    properties = []
+    driver = None
+    
+    try:
+        print("🚀 Starting undetected Chrome browser...")
+        driver = uc.Chrome(version_main=145)
+        
+        # TODO: Add your navigation logic here
+        # Example:
+        driver.get("https://www.realtor.ca")
+        # time.sleep(5)        
+        # Navigate to realtor.ca
+        print("📄 Loading realtor.ca...")
+        driver.get("https://www.realtor.ca")
+        time.sleep(5)
+        
+        # Wait for search bar to load and interact with it
+        print("🔍 Looking for search bar...")
+        search_box = driver.find_element(By.XPATH, "//*[@id='homeSearchTxt']")
+        print("✓ Found search bar")
+        
+        # Click on the search box and type
+        search_box.click()
+        time.sleep(1)
+        search_box.send_keys("toronto on")
+        print("✓ Typed 'toronto on'")
+        
+        # Press down arrow
+        search_box.send_keys(Keys.DOWN)
+        print("✓ Pressed down arrow")
+        time.sleep(1)
+        
+        # Press Enter
+        search_box.send_keys(Keys.RETURN)
+        print("✓ Pressed Enter")
+        time.sleep(5)        
+        for page in range(1, max_pages + 1):
+            print(f"\n📄 Processing page {page}...")
+            
+            try:
+                # Wait for page to load
+                time.sleep(3)
+                
+                # Get the rendered HTML
+                html_content = driver.page_source
+                soup = BeautifulSoup(html_content, 'html.parser')
+                
+                # Find all property cards
+                property_cards = soup.find_all('div', class_='smallListingCard')
+                
+                if not property_cards:
+                    print(f"⚠ No properties found on page {page}")
+                    break
+                
+                print(f"✓ Found {len(property_cards)} properties on page {page}")
+                
+                # Extract property information from each card
+                for idx, card in enumerate(property_cards, 1):
+                    try:
+                        # Extract address
+                        address_elem = card.find('div', class_='smallListingCardAddress')
+                        address = address_elem.get_text(strip=True) if address_elem else "N/A"
+                        
+                        # Extract price
+                        price_elem = card.find('div', class_='smallListingCardPrice')
+                        price = price_elem.get_text(strip=True) if price_elem else "N/A"
+                        
+                        # Extract bedroom, bathroom, sqft (from icon numbers)
+                        icon_nums = card.find_all('div', class_='smallListingCardIconNum')
+                        bedrooms = icon_nums[0].get_text(strip=True) if len(icon_nums) > 0 else "N/A"
+                        bathrooms = icon_nums[1].get_text(strip=True) if len(icon_nums) > 1 else "N/A"
+                        sqft = icon_nums[2].get_text(strip=True) if len(icon_nums) > 2 else "N/A"
+                        
+                        # Extract link
+                        link_elem = card.find('a', class_='blockLink')
+                        link = link_elem.get('href') if link_elem else "N/A"
+                        full_link = link if link.startswith('http') else f"https://www.realtor.ca{link}"
+                        
+                        # Extract MLS number
+                        mls_elem = card.find('div', class_='smallListingCardMLSVal')
+                        mls = mls_elem.get_text(strip=True) if mls_elem else "N/A"
+                        
+                        properties.append({
+                            "Address": address,
+                            "Bedrooms": bedrooms,
+                            "Bathrooms": bathrooms,
+                            "SquareFootage": sqft,
+                            "Price": price,
+                            "MLS": mls,
+                            "Link": full_link
+                        })
+                        
+                    except Exception as e:
+                        print(f"⚠ Error extracting property {idx}: {e}")
+                        continue
+                
+                # Click next page button if there are more pages
+                if page < max_pages:
+                    try:
+                        print(f"\n⏳ Going to page {page + 1}...")
+                        next_button = driver.find_element(By.CLASS_NAME, "lnkNextResultsPage")
+                        next_button.click()
+                        time.sleep(8)  # Wait longer for next page to load
+                    except Exception as e:
+                        print(f"⚠ No next page button found: {e}")
+                        break
+                
+            except Exception as e:
+                print(f"❌ Error processing page {page}: {e}")
+                if page == 1:
+                    break
+    
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    finally:
+        if driver:
+            print("\n🛑 Closing browser...")
+            driver.quit()
+    
+    return properties
