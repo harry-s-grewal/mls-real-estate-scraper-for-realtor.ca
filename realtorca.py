@@ -1,61 +1,62 @@
-""" Wrapper the queries module to get property data from realtor.ca. """
-from time import sleep
-from math import ceil
+""" Selenium-based scraper for realtor.ca properties. """
 import os
-from random import randint
-from requests import HTTPError
 import pandas as pd
-from queries import get_coordinates, get_property_list, get_property_details
+from queries import scrape_property_list
 
-def get_property_list_by_city(city):
-    """ Gets a list of properties for a given city, and returns it as a CSV file. """
 
-    coords = get_coordinates(city)  # Creates bounding box for city
-    max_pages = 1
-    current_page = 1
+def scrape_properties_by_city(city, max_pages=1):
+    """Scrapes properties for a given city and saves them to a CSV file.
+    
+    Args:
+        city: City name (e.g., "Toronto, ON")
+        max_pages: Number of pages to scrape (default: 1)
+    """
+    
     filename = city.replace(" ", "").replace(",", "") + ".csv"
-    if os.path.exists(filename):
-        results_df = pd.read_csv(filename)
-        ## If the queries were interrupted, this will resume from the last page
-        current_page = ceil(results_df.shape[0]/200) + 1
-        max_pages = current_page + 1
-    else:
-        results_df = pd.DataFrame()
-    while current_page <= max_pages:
-        try:
-            data = get_property_list(
-                coords[0], coords[1], 
-                coords[2], coords[3],
-                current_page=current_page)
-            ## Rounds up the total records by the records per page to nearest int
-            max_pages = ceil(data["Paging"]["TotalRecords"]/data["Paging"]["RecordsPerPage"])
-            for json in data["Results"]:
-                results_df = results_df.append(pd.json_normalize(json))
-            results_df.to_csv(filename, index=False)
-            current_page += 1
-            sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
-        except HTTPError:
-            print("Error occurred on city: " + city)
-            sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
+    
+    try:
+        properties = scrape_property_list(city, max_pages=max_pages)
+        
+        if not properties:
+            print(f"❌ No properties found for {city}")
+            return
+        
+        # Create DataFrame from scraped properties
+        results_df = pd.DataFrame(properties)
+        
+        # Save to CSV
+        results_df.to_csv(filename, index=False)
+        print(f"\n✅ Successfully scraped {len(properties)} properties for {city}")
+        print(f"✅ Data saved to {filename}")
+        print(f"\nColumns: {', '.join(results_df.columns)}")
+        print(f"\nFirst few rows:")
+        print(results_df.head())
+        
+    except Exception as e:
+        print(f"❌ Error occurred while scraping {city}: {e}")
 
 
-def get_property_details_from_csv(filename):
-    """ Gets the details of a list of properties from the CSV file created above. """
+def main():
+    """Main entry point for the scraper."""
+    
+    print("=" * 70)
+    print("Realtor.ca Web Scraper (using Selenium)")
+    print("=" * 70)
+    print("\n⚠️  Requirements:")
+    print("  - Chrome or Chromium browser installed")
+    print("  - Internet connection")
+    print("\n")
+    
+    # Example: scrape properties in Toronto, ON
+    # Modify the city and max_pages as needed
+    scrape_properties_by_city("Toronto, ON", max_pages=3)
+    
+    # You can also scrape multiple cities:
+    # cities = ["Toronto, ON", "Vancouver, BC", "Montreal, QC"]
+    # for city in cities:
+    #     scrape_properties_by_city(city, max_pages=1)
+    #     print("\n" + "=" * 70 + "\n")
 
-    results_df = pd.read_csv(filename)
-    if "HasDetails" not in results_df.columns:
-        results_df["HasDetails"] = 0
-    for index, row in results_df.iterrows():
-        if row["HasDetails"] == 1: # Avoids re-querying properties that already have details
-            continue
-        property_id = str(row["Id"])
-        mls_reference_number = str(row["MlsNumber"])
-        try:
-            data = get_property_details(property_id, mls_reference_number)
-            results_df = results_df.join(pd.json_normalize(data), lsuffix='_')
-            results_df.loc[index, 'HasDetails'] = 1
-            results_df.to_csv(filename, index=False)
-            sleep(randint(600, 900))  # sleep 10-15 minutes to avoid rate-limit
-        except HTTPError:
-            print("Error occurred on propertyID: " + property_id)
-            sleep(randint(3000, 3600))  # sleep for 50-60 minutes if limited
+
+if __name__ == "__main__":
+    main()

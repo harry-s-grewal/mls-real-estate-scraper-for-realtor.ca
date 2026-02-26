@@ -2,3 +2,6 @@
 *.csv
 *.json
 *.pyc
+*.venv
+__pycache__/
+venv/
